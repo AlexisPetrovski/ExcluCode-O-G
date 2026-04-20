@@ -22,7 +22,11 @@ def flatten_multilevel_columns(df):
 def find_column(df, patterns, how="partial", required=True):
     # 🔹 This creates a cleaned-up version of all the column names in the table by removing spaces and breaks, making everything in lowercase, and replacing multiple spaces with just one 🔹
     norm_map = {
-        col: re.sub(r"\s+", " ", col.strip().lower().replace("\n", " "))
+        col: re.sub(
+        r"\s+",
+        " ",
+        "" if pd.isna(col) else str(col).strip().lower().replace("\n", " ")
+        )
         for col in df.columns
     }
      # 🔹 This does the same cleanup for the words you're looking for. 🔹
@@ -79,6 +83,7 @@ def remove_equity_from_bb_ticker(df):
 def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_thresholds):
     xls = pd.ExcelFile(uploaded_file)
     df = xls.parse("All Companies", header=[3,4])
+    df.columns = ["" if pd.isna(c) else str(c).strip() for c in df.columns]
     df.columns = [" ".join(map(str,c)).strip() for c in df.columns]
     df = df.loc[:, ~df.columns.str.lower().str.startswith("parent company")]
     df = remove_equity_from_bb_ticker(df)
@@ -195,6 +200,7 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
 def filter_upstream_companies(df):
     figi_col = find_column(df, ["figi"], how="partial", required=False)
     df = flatten_multilevel_columns(df)
+    df.columns = ["" if pd.isna(c) else str(c).strip() for c in df.columns]
     df = df.loc[:, ~df.columns.str.lower().str.startswith("parent company")]
 
     # 🔹 This finds and stores the correct column names from the Excel sheet, even if they don’t match exactly. Type of searching can be adjusted in "how =" 🔹
@@ -513,6 +519,7 @@ def filter_all_companies(df: pd.DataFrame):
     """
     # 1. tidy columns ---------------------------------------------------------
     df = flatten_multilevel_columns(df)
+    df.columns = ["" if pd.isna(c) else str(c).strip() for c in df.columns]
     df = df.loc[:, ~df.columns.str.lower().str.startswith("parent company")]         
     df = df.iloc[1:].reset_index(drop=True)          # 🔹 Drops the first data row (df.iloc[1:]), which may contain merged header content or notes from Excel. Resets the index afterward so the rows are renumbered properly. 🔹
     df = ensure_unique_columns(df)
