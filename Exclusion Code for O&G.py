@@ -198,70 +198,92 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
 # 🔹🔹🔹 Level-2 — Upstream filter 🔹🔹🔹
 # 🔹 It prepares the "Upstream" sheet of the Excel file by flattening the column names and Removing any columns that start with "Parent Company"🔹
 def filter_upstream_companies(df):
-    figi_col = find_column(df, ["figi"], how="partial", required=False)
+    # ---------------------------
+    # 1. Clean structure FIRST
+    # ---------------------------
     df = flatten_multilevel_columns(df)
+    df = ensure_unique_columns(df)
+
     df.columns = ["" if pd.isna(c) else str(c).strip() for c in df.columns]
     df = df.loc[:, ~df.columns.str.lower().str.startswith("parent company")]
 
-    # 🔹 This finds and stores the correct column names from the Excel sheet, even if they don’t match exactly. Type of searching can be adjusted in "how =" 🔹
+    # ---------------------------
+    # 2. Find required columns
+    # ---------------------------
     comp_col      = find_column(df, ["company"], how="partial", required=True)
-    res_col       = find_column(df, ["resources under development and field evaluation"],
-                                how="partial", required=True)
-    capex_avg_col = find_column(df, ["exploration capex 3-year average"],
-                                how="partial", required=True)
-    short_col     = find_column(df, ["short-term expansion ≥20 mmboe"],
-                                how="partial", required=True)
-    capex10_col   = find_column(df, ["exploration capex ≥10 musd"],
-                                how="partial", required=True)
+    res_col       = find_column(df, ["resources under development and field evaluation"], how="partial", required=True)
+    capex_avg_col = find_column(df, ["exploration capex 3-year average"], how="partial", required=True)
+    short_col     = find_column(df, ["short-term expansion ≥20 mmboe"], how="partial", required=True)
+    capex10_col   = find_column(df, ["exploration capex ≥10 musd"], how="partial", required=True)
 
-    # 🔹 It renames the columns in the DataFrame to a standard set of names, no matter what the original Excel file called them. 🔹
-    df = df.rename(columns={
-        comp_col     : "Company",
-        res_col      : "Resources under Development and Field Evaluation",
+    # FIGI is optional → DO NOT FAIL if missing
+    figi_col = find_column(df, ["figi"], how="partial", required=False)
+
+    # ---------------------------
+    # 3. Rename safely
+    # ---------------------------
+    rename_dict = {
+        comp_col: "Company",
+        res_col: "Resources under Development and Field Evaluation",
         capex_avg_col: "Exploration CAPEX 3-year average",
-        short_col    : "Short-Term Expansion ≥20 mmboe",
-        capex10_col  : "Exploration CAPEX ≥10 MUSD",
-    })
+        short_col: "Short-Term Expansion ≥20 mmboe",
+        capex10_col: "Exploration CAPEX ≥10 MUSD",
+    }
 
+    if figi_col:
+        rename_dict[figi_col] = "FIGI"
+
+    df = df.rename(columns=rename_dict)
+
+    # ---------------------------
+    # 4. FORCE FIGI COLUMN EXISTS (IMPORTANT FIX)
+    # ---------------------------
     if "FIGI" not in df.columns:
         df["FIGI"] = np.nan
-    
-    # 🔹 It takes two columns (which should have numbers), cleans them up, and converts them to proper numbers, so we can safely do comparisons and math. 🔹
+
+    # ---------------------------
+    # 5. Numeric conversion
+    # ---------------------------
     num_cols = [
         "Resources under Development and Field Evaluation",
         "Exploration CAPEX 3-year average",
     ]
+
     for c in num_cols:
         df[c] = pd.to_numeric(
-            df[c].astype(str)               # 🔹 Ensures even numeric or null cells are treated as strings.
-                 .str.replace(",", "", regex=True)   # 🔹 Removes commas
-                 .str.replace(r"[^\d.\-]", "", regex=True),   # 🔹 Removes everything except digits, decimal points, and minus signs.
+            df[c].astype(str)
+                .str.replace(",", "", regex=True)
+                .str.replace(r"[^\d.\-]", "", regex=True),
             errors="coerce"
         ).fillna(0)
 
-
-    # 🔹 Checks whether the company has any resources under development, invested any CAPEX over the past 3 years, short-term expansion exceeds 20 MMBOE, larger exploration projects with CAPEX ≥ $10 million, Exclude if any condition is true 🔹
+    # ---------------------------
+    # 6. Flags
+    # ---------------------------
     df["F2_Res"] = df["Resources under Development and Field Evaluation"] > 0
     df["F2_Avg"] = df["Exploration CAPEX 3-year average"] > 0
     df["F2_ST"]  = df["Short-Term Expansion ≥20 mmboe"].astype(str).str.lower().eq("yes")
     df["F2_10M"] = df["Exploration CAPEX ≥10 MUSD"].astype(str).str.lower().eq("yes")
-    df["Excluded"] = df[["F2_Res","F2_Avg","F2_ST","F2_10M"]].any(axis=1)
 
-    # 🔹 For each company (row), it builds a text summary of the reasons why that company was excluded — based on which conditions were true.🔹
+    df["Excluded"] = df[["F2_Res", "F2_Avg", "F2_ST", "F2_10M"]].any(axis=1)
+
+    # ---------------------------
+    # 7. Reason
+    # ---------------------------
     df["Exclusion Reason"] = df.apply(
         lambda r: "; ".join(p for p in (
-            "Resources under development and field evaluation > 0" if r["F2_Res"] else None,
-            "3-yr CAPEX avg > 0" if r["F2_Avg"] else None,
-            "Short-Term Expansion = Yes"   if r["F2_ST"]  else None,
-            "CAPEX ≥10 MUSD = Yes"         if r["F2_10M"] else None,
+            "Resources > 0" if r["F2_Res"] else None,
+            "3Y CAPEX > 0" if r["F2_Avg"] else None,
+            "Short-Term Expansion = Yes" if r["F2_ST"] else None,
+            "CAPEX ≥10M = Yes" if r["F2_10M"] else None,
         ) if p),
         axis=1
     )
 
-    # 🔹 This part splits the companies into two groups:: excluded and retained companies🔹
-    exc = df[df["Excluded"]].copy()
-    ret = df[~df["Excluded"]].copy()
-    return exc[[
+    # ---------------------------
+    # 8. SAFE OUTPUT (FIXES YOUR KEYERROR)
+    # ---------------------------
+    cols = [
         "Company",
         "FIGI",
         "Resources under Development and Field Evaluation",
@@ -269,11 +291,15 @@ def filter_upstream_companies(df):
         "Short-Term Expansion ≥20 mmboe",
         "Exploration CAPEX ≥10 MUSD",
         "Exclusion Reason"
-    ], 
-    cols = [c for c in cols if c in exc.columns]
+    ]
+
+    cols = [c for c in cols if c in df.columns]
+
+    exc = df[df["Excluded"]].copy()
+    ret = df[~df["Excluded"]].copy()
 
     return exc[cols], ret[cols]
-
+    
 # 🔹 Excel Helpers 🔹
 # 🔹 This function prepares and exports the Level 1 results into an Excel file with 3 separate sheets: Excluded Level 1, Retained Level 1, L1 No Data 🔹
 def to_excel_l1(exc, ret, no_data):
