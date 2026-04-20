@@ -261,7 +261,7 @@ def filter_upstream_companies(df):
 # 🔹 This function prepares and exports the Level 1 results into an Excel file with 3 separate sheets: Excluded Level 1, Retained Level 1, L1 No Data 🔹
 def to_excel_l1(exc, ret, no_data):
     cols = [
-        "Company","BB Ticker","ISIN equity","LEI",
+        "Company","BB Ticker","ISIN equity","LEI", "FIGI",
         "Hydrocarbons Production (%)","Fracking Revenue","Tar Sand Revenue",
         "Coalbed Methane Revenue","Extra Heavy Oil Revenue","Ultra Deepwater Revenue",
         "Arctic Revenue","Unconventional Production Revenue","Exclusion Reason","Custom Total Revenue"
@@ -281,7 +281,7 @@ def to_excel_l1(exc, ret, no_data):
 def to_excel_l2(all_exc, exc1, exc2, ret1, ret2, exc_up, ret_up):
     cols = [
         # identity / Level-1 data
-        "Company","BB Ticker","ISIN equity","LEI",
+        "Company","BB Ticker","ISIN equity","LEI","FIGI"
         "Hydrocarbons Production (%)","Fracking Revenue","Tar Sand Revenue",
         "Coalbed Methane Revenue","Extra Heavy Oil Revenue","Ultra Deepwater Revenue",
         "Arctic Revenue","Unconventional Production Revenue","Custom Total Revenue",
@@ -440,7 +440,7 @@ def main():
                 .merge(exc_up   .drop(columns=["Exclusion Reason"]), on="Company", how="left")
         )
         union = union.merge(
-            df_l1_all[["Company", "BB Ticker", "ISIN equity", "LEI"]],
+            df_l1_all[["Company", "BB Ticker", "ISIN equity", "LEI", "FIGI"]],
             on="Company", how="left", suffixes=("", "_y")
         )
         union = union.drop(columns=[c for c in union.columns if c.endswith("_y")])
@@ -510,6 +510,7 @@ def filter_all_companies(df: pd.DataFrame):
         "BB Ticker": ["bb ticker"],
         "ISIN equity": ["isin equity"],
         "LEI": ["lei"],
+        "FIGI": ["figi"],
         "Length of Pipelines under Development": ["length of pipelines"],
         "Liquefaction Capacity (Export)":        ["liquefaction capacity"],
         "Regasification Capacity (Import)":      ["regasification capacity"],
