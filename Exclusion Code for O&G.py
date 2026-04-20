@@ -224,7 +224,7 @@ def filter_upstream_companies(df):
     })
 
     if "FIGI" not in df.columns:
-    df["FIGI"] = np.nan
+        df["FIGI"] = np.nan
     
     # 🔹 It takes two columns (which should have numbers), cleans them up, and converts them to proper numbers, so we can safely do comparisons and math. 🔹
     num_cols = [
