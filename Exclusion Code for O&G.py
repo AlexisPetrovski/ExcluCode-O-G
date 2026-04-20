@@ -221,9 +221,11 @@ def filter_upstream_companies(df):
         capex_avg_col: "Exploration CAPEX 3-year average",
         short_col    : "Short-Term Expansion ≥20 mmboe",
         capex10_col  : "Exploration CAPEX ≥10 MUSD",
-        figi_col: "FIGI"
     })
 
+    if "FIGI" not in df.columns:
+    df["FIGI"] = np.nan
+    
     # 🔹 It takes two columns (which should have numbers), cleans them up, and converts them to proper numbers, so we can safely do comparisons and math. 🔹
     num_cols = [
         "Resources under Development and Field Evaluation",
@@ -267,15 +269,10 @@ def filter_upstream_companies(df):
         "Short-Term Expansion ≥20 mmboe",
         "Exploration CAPEX ≥10 MUSD",
         "Exclusion Reason"
-    ]], ret[[
-        "Company",
-        "FIGI",
-        "Resources under Development and Field Evaluation",
-        "Exploration CAPEX 3-year average",
-        "Short-Term Expansion ≥20 mmboe",
-        "Exploration CAPEX ≥10 MUSD",
-        "Exclusion Reason"
-    ]]
+    ], 
+    cols = [c for c in cols if c in exc.columns]
+
+    return exc[cols], ret[cols]
 
 # 🔹 Excel Helpers 🔹
 # 🔹 This function prepares and exports the Level 1 results into an Excel file with 3 separate sheets: Excluded Level 1, Retained Level 1, L1 No Data 🔹
