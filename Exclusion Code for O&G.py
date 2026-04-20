@@ -108,7 +108,16 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
             df[c] = np.nan
 
     # 🔹 It checks which companies are completely missing revenue data, and separates them from the rest. Checks for revenue data to ignore columns with company names and tickers🔹
-    revenue_cols = needed[4:]
+    revenue_cols = [
+    "Hydrocarbons Production (%)",
+    "Fracking Revenue",
+    "Tar Sand Revenue",
+    "Coalbed Methane Revenue",
+    "Extra Heavy Oil Revenue",
+    "Ultra Deepwater Revenue",
+    "Arctic Revenue",
+    "Unconventional Production Revenue",
+    ]
     no_data = df[df[revenue_cols].isnull().all(axis=1)].copy()
     df = df.dropna(subset=revenue_cols, how="all")
  
