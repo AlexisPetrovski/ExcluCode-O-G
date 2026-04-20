@@ -193,6 +193,7 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
 # 🔹🔹🔹 Level-2 — Upstream filter 🔹🔹🔹
 # 🔹 It prepares the "Upstream" sheet of the Excel file by flattening the column names and Removing any columns that start with "Parent Company"🔹
 def filter_upstream_companies(df):
+    figi_col = find_column(df, ["figi"], how="partial", required=False)
     df = flatten_multilevel_columns(df)
     df = df.loc[:, ~df.columns.str.lower().str.startswith("parent company")]
 
@@ -214,6 +215,7 @@ def filter_upstream_companies(df):
         capex_avg_col: "Exploration CAPEX 3-year average",
         short_col    : "Short-Term Expansion ≥20 mmboe",
         capex10_col  : "Exploration CAPEX ≥10 MUSD",
+        figi_col: "FIGI"
     })
 
     # 🔹 It takes two columns (which should have numbers), cleans them up, and converts them to proper numbers, so we can safely do comparisons and math. 🔹
