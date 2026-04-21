@@ -98,7 +98,6 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
 
     if "FIGI" in df.columns:
         df["FIGI"] = df["FIGI"].astype(str).str.strip()
-            # clean fake placeholders only
         df.loc[df["FIGI"].str.lower().isin(["nan", "none", ""]), "FIGI"] = np.nan
 
     needed = list(rename_map.keys())
@@ -495,6 +494,9 @@ def filter_all_companies(df: pd.DataFrame):
         "Total Capacity under Development":      ["total capacity under development"],
     }
     df = rename_columns(df, rename_map)
+
+    print(df.columns.tolist())
+    print(df[["Company", "FIGI"]].head(10))
 
     # 3. make sure every canonical column exists -----------------------------
     needed = list(rename_map.keys())
