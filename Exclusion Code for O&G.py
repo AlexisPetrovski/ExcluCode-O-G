@@ -93,6 +93,10 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
     }
     df = rename_columns(df, rename_map)
 
+    if "FIGI" in df.columns:
+    df["FIGI"] = df["FIGI"].astype(str).str.strip()
+    df.loc[df["FIGI"].isin(["nan", "None", ""]), "FIGI"] = np.nan
+
     needed = list(rename_map.keys())
     for c in needed:
         if c not in df.columns:
