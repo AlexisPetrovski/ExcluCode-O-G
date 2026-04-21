@@ -72,10 +72,7 @@ def remove_equity_from_bb_ticker(df):
 def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_thresholds):
     xls = pd.ExcelFile(uploaded_file)
     df = xls.parse("All Companies", header=[3,4])
-    df.columns = [
-    " ".join([str(i).strip() for i in col if str(i) not in ["nan", "None"]]).strip()
-    for col in df.columns
-    ]
+    df.columns = [" ".join(map(str,c)).strip() for c in df.columns]
     df = df.loc[:, ~df.columns.str.lower().str.startswith("parent company")]
     df = remove_equity_from_bb_ticker(df)
 
@@ -84,7 +81,6 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
         "BB Ticker": ["bb ticker"],
         "ISIN equity": ["isin equity"],
         "LEI": ["lei"],
-        "FIGI": ["figi"],
         "Hydrocarbons Production (%)": ["hydrocarbons production"],
         "Fracking Revenue": ["fracking"],
         "Tar Sand Revenue": ["tar sands"],
@@ -96,14 +92,6 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
     }
     df = rename_columns(df, rename_map)
 
-    figi_col = find_column(df, ["figi"], how="partial", required=False)
-    if figi_col:
-        df.rename(columns={figi_col: "FIGI"}, inplace=True)
-        df["FIGI"] = df["FIGI"].astype(str).str.strip()
-        df.loc[df["FIGI"].str.lower().isin(["nan", "none", "", "0"]), "FIGI"] = np.nan
-    else:
-        df["FIGI"] = np.nan
-    
     needed = list(rename_map.keys())
     for c in needed:
         if c not in df.columns:
@@ -246,7 +234,7 @@ def filter_upstream_companies(df):
 
 def to_excel_l1(exc, ret, no_data):
     cols = [
-        "Company","BB Ticker","ISIN equity","LEI","FIGI",
+        "Company","BB Ticker","ISIN equity","LEI",
         "Hydrocarbons Production (%)","Fracking Revenue","Tar Sand Revenue",
         "Coalbed Methane Revenue","Extra Heavy Oil Revenue","Ultra Deepwater Revenue",
         "Arctic Revenue","Unconventional Production Revenue","Exclusion Reason","Custom Total Revenue"
@@ -265,7 +253,7 @@ def to_excel_l1(exc, ret, no_data):
 def to_excel_l2(all_exc, exc1, exc2, ret1, ret2, exc_up, ret_up):
     cols = [
         # identity / Level-1 data
-        "Company","BB Ticker","ISIN equity","LEI","FIGI",
+        "Company","BB Ticker","ISIN equity","LEI",
         "Hydrocarbons Production (%)","Fracking Revenue","Tar Sand Revenue",
         "Coalbed Methane Revenue","Extra Heavy Oil Revenue","Ultra Deepwater Revenue",
         "Arctic Revenue","Unconventional Production Revenue","Custom Total Revenue",
@@ -421,7 +409,7 @@ def main():
                 .merge(exc_up   .drop(columns=["Exclusion Reason"]), on="Company", how="left")
         )
         union = union.merge(
-            df_l1_all[["Company", "BB Ticker", "ISIN equity", "LEI", "FIGI"]],
+            df_l1_all[["Company", "BB Ticker", "ISIN equity", "LEI"]],
             on="Company", how="left", suffixes=("", "_y")
         )
         union = union.drop(columns=[c for c in union.columns if c.endswith("_y")])
@@ -491,16 +479,12 @@ def filter_all_companies(df: pd.DataFrame):
         "BB Ticker": ["bb ticker"],
         "ISIN equity": ["isin equity"],
         "LEI": ["lei"],
-        "FIGI": ["figi"],
         "Length of Pipelines under Development": ["length of pipelines"],
         "Liquefaction Capacity (Export)":        ["liquefaction capacity"],
         "Regasification Capacity (Import)":      ["regasification capacity"],
         "Total Capacity under Development":      ["total capacity under development"],
     }
     df = rename_columns(df, rename_map)
-
-    print(df.columns.tolist())
-    print(df[["Company", "FIGI"]].head(10))
 
     # 3. make sure every canonical column exists -----------------------------
     needed = list(rename_map.keys())
