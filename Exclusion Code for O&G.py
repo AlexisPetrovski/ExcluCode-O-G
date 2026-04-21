@@ -72,7 +72,10 @@ def remove_equity_from_bb_ticker(df):
 def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_thresholds):
     xls = pd.ExcelFile(uploaded_file)
     df = xls.parse("All Companies", header=[3,4])
-    df.columns = [" ".join(map(str,c)).strip() for c in df.columns]
+    df.columns = [
+    " ".join([str(i) for i in col if str(i) != "nan"]).strip()
+    for col in df.columns
+    ]
     df = df.loc[:, ~df.columns.str.lower().str.startswith("parent company")]
     df = remove_equity_from_bb_ticker(df)
 
@@ -95,7 +98,8 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
 
     if "FIGI" in df.columns:
         df["FIGI"] = df["FIGI"].astype(str).str.strip()
-        df.loc[df["FIGI"].isin(["nan", "None", ""]), "FIGI"] = np.nan
+            # clean fake placeholders only
+        df.loc[df["FIGI"].str.lower().isin(["nan", "none", ""]), "FIGI"] = np.nan
 
     needed = list(rename_map.keys())
     for c in needed:
