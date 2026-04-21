@@ -73,7 +73,7 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
     xls = pd.ExcelFile(uploaded_file)
     df = xls.parse("All Companies", header=[3,4])
     df.columns = [
-    " ".join([str(i) for i in col if str(i) != "nan"]).strip()
+    " ".join([str(i).strip() for i in col if str(i) not in ["nan", "None"]]).strip()
     for col in df.columns
     ]
     df = df.loc[:, ~df.columns.str.lower().str.startswith("parent company")]
@@ -96,10 +96,14 @@ def filter_companies_by_revenue(uploaded_file, sector_exclusions, total_threshol
     }
     df = rename_columns(df, rename_map)
 
-    if "FIGI" in df.columns:
+    figi_col = find_column(df, ["figi"], how="partial", required=False)
+    if figi_col:
+        df.rename(columns={figi_col: "FIGI"}, inplace=True)
         df["FIGI"] = df["FIGI"].astype(str).str.strip()
-        df.loc[df["FIGI"].str.lower().isin(["nan", "none", ""]), "FIGI"] = np.nan
-
+        df.loc[df["FIGI"].str.lower().isin(["nan", "none", "", "0"]), "FIGI"] = np.nan
+    else:
+        df["FIGI"] = np.nan
+    
     needed = list(rename_map.keys())
     for c in needed:
         if c not in df.columns:
